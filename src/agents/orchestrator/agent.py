@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from agent_framework.github import GitHubCopilotAgent, GitHubCopilotOptions
-from copilot.generated.rpc import PermissionDecisionApproveOnce
+from copilot.generated.rpc import PermissionDecisionApproveOnce, PermissionDecisionReject
 from copilot.session import PermissionRequestResult
+from copilot.session_events import PermissionPromptRequestCustomTool, PermissionRequest
 
 from src.shared.copilot import build_copilot_client
 from src.shared.settings import Settings
@@ -14,9 +15,13 @@ from src.shared.settings import Settings
 from .prompts import SYSTEM_PROMPT
 from .tools import TOOLS
 
+_DELEGATION_TOOLS = {"ask_inventory", "ask_supplier", "ask_logistics", "ask_pricing"}
 
-def _approve_all(_request: object, _context: dict[str, str]) -> PermissionRequestResult:
-    return PermissionDecisionApproveOnce()
+
+def _approve_delegation_tools(request: PermissionRequest, _context: dict[str, str]) -> PermissionRequestResult:
+    if isinstance(request, PermissionPromptRequestCustomTool) and request.tool_name in _DELEGATION_TOOLS:
+        return PermissionDecisionApproveOnce()
+    return PermissionDecisionReject(feedback="Only the four specialist delegation tools are permitted.")
 
 
 @dataclass
@@ -36,16 +41,17 @@ class _RunnableAgent:
 
 
 async def build_agent(settings: Settings) -> _RunnableAgent:
+    default_options: GitHubCopilotOptions = {
+        "model": settings.copilot_model,
+        "timeout": settings.copilot_timeout_seconds,
+        "on_permission_request": _approve_delegation_tools,
+    }
     agent = GitHubCopilotAgent(
         client=build_copilot_client(),
         instructions=SYSTEM_PROMPT,
         name="orchestrator",
         description="ZavaShop orchestrator for single-store stock-out response planning.",
         tools=list(TOOLS),
-        default_options=GitHubCopilotOptions(
-            model=settings.copilot_model,
-            timeout=settings.copilot_timeout_seconds,
-            on_permission_request=_approve_all,
-        ),
+        default_options=default_options,
     )
     return _RunnableAgent(agent=agent)

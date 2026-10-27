@@ -1,4 +1,4 @@
-"""In-memory pricing store for the pricing MCP server."""
+"""In-memory pricing catalog for deterministic recommendations."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from .models import PriceRecommendation, PricingQuery
 
 @dataclass(frozen=True, slots=True)
 class PriceRow:
-    """Internal price row for deterministic pricing recommendations."""
+    """Internal product price, cost, and guardrails for a store."""
 
     current_price: float
     unit_cost: float
@@ -46,19 +46,12 @@ _PRICES: dict[tuple[str, str], PriceRow] = {
 
 
 async def recommend_price_for(query: PricingQuery) -> PriceRecommendation:
-    """Return a deterministic price recommendation for a SKU and store."""
-
+    """Return a deterministic, bounded price recommendation for a known SKU and store."""
     await asyncio.sleep(0)
-    row = _PRICES.get(
-        (query.sku, query.store_id),
-        PriceRow(
-            current_price=29.99,
-            unit_cost=15.0,
-            floor_price=24.99,
-            ceiling_price=34.99,
-            category="manual review",
-        ),
-    )
+    row = _PRICES.get((query.sku, query.store_id))
+    if row is None:
+        raise ValueError(f"No pricing information exists for SKU {query.sku} at {query.store_id}.")
+
     adjustment = _price_adjustment(demand_signal=query.demand_signal, stock_risk_level=query.stock_risk_level)
     recommended_price = _clamp(
         round(row.current_price * (1 + adjustment), 2),
@@ -70,22 +63,22 @@ async def recommend_price_for(query: PricingQuery) -> PriceRecommendation:
         store_id=query.store_id,
         current_price=row.current_price,
         recommended_price=recommended_price,
-        margin_impact=_margin_impact(row=row, recommended_price=recommended_price),
+        currency="USD",
         rationale=_rationale(query=query, row=row, adjustment=adjustment, recommended_price=recommended_price),
+        margin_impact=_margin_impact(row=row, recommended_price=recommended_price),
     )
 
 
 def _price_adjustment(*, demand_signal: str, stock_risk_level: str) -> float:
     demand = demand_signal.lower()
-    risk = stock_risk_level.lower()
     adjustment = 0.0
     if any(term in demand for term in ("spike", "surge", "high", "hot")):
         adjustment += 0.04
     if any(term in demand for term in ("soft", "low", "decline")):
         adjustment -= 0.03
-    if risk in {"critical", "high"}:
+    if stock_risk_level in {"critical", "high"}:
         adjustment += 0.03
-    if risk == "low":
+    if stock_risk_level == "low":
         adjustment -= 0.01
     return adjustment
 

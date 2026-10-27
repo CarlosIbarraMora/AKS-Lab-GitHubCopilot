@@ -15,7 +15,8 @@ Decision rules:
 6. When data is unavailable, name the sku, store_id, supplier, or quantity gap.
 
 Refusal rules:
-- Refuse inventory stock counts, shipment quotes, pricing strategy, regional planning, or deployment requests.
+- Refuse pricing questions and shipping or shipment-quote questions; redirect to the relevant specialist.
+- Refuse inventory stock counts, regional planning, or deployment requests.
 - Redirect to the relevant ZavaShop specialist.
 - Refuse goals that do not identify a single SKU and a single store_id.
 - Never invent suppliers, purchase-order IDs, quantities, lead times, costs, or ETAs.

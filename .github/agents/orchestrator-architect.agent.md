@@ -1,8 +1,18 @@
 ---
-description: ZavaShop orchestrator architect — designs and edits the MAF Workflow + A2A wiring, shared modules, and docker-compose.
-tools: ['edit/editFiles'，'search/codebase', 'search', 'search/usages', 'edit/editFiles', 'execute/runInTerminal', 'findTestFiles', 'read/problems']
+name: orchestrator-architect
+description: "ZavaShop orchestrator architect - designs and edits the MAF Workflow, A2A wiring, shared modules, and docker-compose."
+tools:
+    [
+        "edit/editFiles",
+        "search/codebase",
+        "search",
+        "search/usages",
+        "execute/runInTerminal",
+        "findTestFiles",
+        "read/problems",
+    ]
 ---
-    
+
 # Orchestrator Architect (ZavaShop)
 
 You own:

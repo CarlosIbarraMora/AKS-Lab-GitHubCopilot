@@ -17,27 +17,24 @@ mcp = FastMCP("pricing-mcp", host="0.0.0.0", port=8080, streamable_http_path="/m
 @mcp.custom_route("/healthz", methods=["GET"])
 async def healthz(_request: Request) -> JSONResponse:
     """Return process health for container probes."""
-
     return JSONResponse({"status": "ok"})
 
 
 @mcp.custom_route("/readyz", methods=["GET"])
 async def readyz(_request: Request) -> JSONResponse:
-    """Return readiness for ACA ingress probes."""
-
+    """Return readiness for container probes."""
     return JSONResponse({"status": "ready", "name": "pricing-mcp"})
 
 
 @mcp.tool()
 async def recommend_price(query: PricingQuery) -> PriceRecommendation:
-    """Recommend a price for one SKU at one store.
+    """Recommend a price for one SKU using demand and inventory context.
 
     Args:
         query: SKU, store, demand signal, and stock risk level to price.
     Returns:
-        PriceRecommendation with current price, recommended price, margin impact, and rationale.
+        PriceRecommendation with current and recommended prices, currency, margin impact, and rationale.
     """
-
     log.info(
         "tool.recommend_price",
         sku=query.sku,

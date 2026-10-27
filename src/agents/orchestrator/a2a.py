@@ -13,6 +13,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.shared.server import InvokeRequest, InvokeResponse
 from src.shared.settings import Settings
 
+A2A_TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=10.0)
+
 
 class SpecialistOutputs(BaseModel):
     """Outputs returned by all specialists for one stock-out plan."""
@@ -26,19 +28,21 @@ class SpecialistOutputs(BaseModel):
 
 
 @dataclass(frozen=True)
-class SpecialistClient:
+class A2AClient:
     """HTTP client for invoking ZavaShop specialist agents."""
 
     settings: Settings
 
     async def invoke(self, *, name: str, url: str, goal: str, run_id: str | None = None) -> str:
         request = InvokeRequest(run_id=run_id or uuid4().hex, goal=goal, context={"caller": "orchestrator"})
-        timeout = httpx.Timeout(self.settings.copilot_timeout_seconds)
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=A2A_TIMEOUT) as client:
             response = await client.post(url, json=request.model_dump())
             response.raise_for_status()
         envelope = InvokeResponse.model_validate(response.json())
         return envelope.output
+
+
+SpecialistClient = A2AClient
 
 
 class SpecialistInvoker(Protocol):
@@ -67,11 +71,13 @@ class FanOutGoals(BaseModel):
 def build_specialist_goals(*, sku: str, store_id: str, supplier_quantity: int = 80) -> FanOutGoals:
     """Build deterministic specialist goals for a stock-out response plan."""
 
-    po_hint = f"PO candidate for {sku} at {store_id}"
     return FanOutGoals(
         inventory=f"Check stock risk for SKU {sku} at {store_id}; include nearby store and warehouse options.",
         supplier=f"List suppliers and draft a purchase order for SKU {sku} at {store_id} quantity {supplier_quantity}.",
-        logistics=f"Quote shipment for {po_hint} to {store_id} quantity {supplier_quantity}.",
+        logistics=(
+            f"Quote shipment for SKU {sku} from source location wh-east to destination store {store_id} "
+            f"quantity {supplier_quantity}."
+        ),
         pricing=f"Recommend price for SKU {sku} at {store_id} with high demand signal and critical stock risk.",
     )
 

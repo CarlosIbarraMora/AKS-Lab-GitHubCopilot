@@ -17,30 +17,28 @@ mcp = FastMCP("shipping-mcp", host="0.0.0.0", port=8080, streamable_http_path="/
 @mcp.custom_route("/healthz", methods=["GET"])
 async def healthz(_request: Request) -> JSONResponse:
     """Return process health for container probes."""
-
     return JSONResponse({"status": "ok"})
 
 
 @mcp.custom_route("/readyz", methods=["GET"])
 async def readyz(_request: Request) -> JSONResponse:
-    """Return readiness for ACA ingress probes."""
-
+    """Return readiness for container probes."""
     return JSONResponse({"status": "ready", "name": "shipping-mcp"})
 
 
 @mcp.tool()
 async def quote_shipment(request: ShipmentQuoteRequest) -> ShipmentQuote:
-    """Quote shipment cost and ETA for one purchase order.
+    """Quote a shipment between ZavaShop locations without initiating it.
 
     Args:
-        request: Purchase order, destination store, and quantity to ship.
+        request: SKU, source location, destination store, and shipment quantity.
     Returns:
-        ShipmentQuote with carrier, service level, ETA, cost, and recommendation.
+        ShipmentQuote with the route, carrier and ETA, or an explicit unavailable status.
     """
-
     log.info(
         "tool.quote_shipment",
-        po_id=request.po_id,
+        sku=request.sku,
+        source_location_id=request.source_location_id,
         destination_store_id=request.destination_store_id,
         quantity=request.quantity,
     )

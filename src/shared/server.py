@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 from uuid import uuid4
 
 import structlog
@@ -59,6 +59,11 @@ class _RunResult(Protocol):
     output_text: str
 
 
+@runtime_checkable
+class _RunResultWithToolCalls(Protocol):
+    tool_calls: list[str]
+
+
 class _Runnable(Protocol):
     async def run(self, message: str, /) -> _RunResult: ...
 
@@ -93,6 +98,8 @@ def make_app(*, name: str, build: AgentBuilder, settings: Settings | None = None
 
     @app.get("/healthz", response_model=HealthResponse)
     async def healthz() -> HealthResponse:
+        if agent is None:
+            raise HTTPException(status_code=503, detail="agent not initialized")
         return HealthResponse(status="ok")
 
     @app.get("/readyz", response_model=ReadinessResponse)
@@ -111,7 +118,8 @@ def make_app(*, name: str, build: AgentBuilder, settings: Settings | None = None
             log.info("agent.run.begin", goal=request.goal)
             result = await agent.run(request.goal)
             log.info("agent.run.end")
-            return InvokeResponse(run_id=request.run_id, output=result.output_text)
+            tool_calls = result.tool_calls if isinstance(result, _RunResultWithToolCalls) else []
+            return InvokeResponse(run_id=request.run_id, output=result.output_text, tool_calls=tool_calls)
         except Exception as exc:
             log.error("agent.run.error", error=str(exc))
             raise HTTPException(status_code=502, detail="agent run failed") from exc

@@ -17,14 +17,12 @@ mcp = FastMCP("supplier-mcp", host="0.0.0.0", port=8080, streamable_http_path="/
 @mcp.custom_route("/healthz", methods=["GET"])
 async def healthz(_request: Request) -> JSONResponse:
     """Return process health for container probes."""
-
     return JSONResponse({"status": "ok"})
 
 
 @mcp.custom_route("/readyz", methods=["GET"])
 async def readyz(_request: Request) -> JSONResponse:
-    """Return readiness for ACA ingress probes."""
-
+    """Return readiness for container probes."""
     return JSONResponse({"status": "ready", "name": "supplier-mcp"})
 
 
@@ -33,25 +31,23 @@ async def list_suppliers(query: SupplierQuery) -> SupplierList:
     """List ranked suppliers that can replenish one SKU.
 
     Args:
-        query: SKU to source from supplier inventory.
+        query: SKU to source from the local supplier catalog.
     Returns:
         SupplierList with available quantities, cost, lead time, and reliability.
     """
-
     log.info("tool.list_suppliers", sku=query.sku)
     return await find_suppliers(query)
 
 
 @mcp.tool()
 async def draft_po(request: PurchaseOrderRequest) -> PurchaseOrderDraft:
-    """Draft a replenishment purchase order for one SKU and store.
+    """Create a purchase-order draft without submitting an order.
 
     Args:
-        request: SKU, receiving store, chosen supplier, and quantity to order.
+        request: SKU, destination store, requested quantity, and chosen supplier.
     Returns:
-        PurchaseOrderDraft with a stable PO ID, estimated total, ETA, and status.
+        PurchaseOrderDraft containing supplier terms and draft status.
     """
-
     log.info(
         "tool.draft_po",
         sku=request.sku,

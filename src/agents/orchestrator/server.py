@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from src.shared.server import make_app
 from src.shared.settings import Settings
 
-from .a2a import SpecialistClient, SpecialistInvoker, call_specialists
+from .a2a import A2AClient, SpecialistInvoker, call_specialists
 from .agent import build_agent
 from .contracts import Goal, Plan
 
@@ -17,7 +17,7 @@ def create_app(settings: Settings | None = None, specialist_client: SpecialistIn
 
     app_settings = settings or Settings()
     app = make_app(name="orchestrator", build=build_agent, settings=app_settings)
-    client = specialist_client or SpecialistClient(settings=app_settings)
+    client = specialist_client or A2AClient(settings=app_settings)
 
     @app.post("/plan", response_model=Plan)
     async def plan(goal: Goal) -> Plan:

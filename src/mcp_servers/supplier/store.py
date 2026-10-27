@@ -1,4 +1,4 @@
-"""In-memory supplier store for the supplier MCP server."""
+"""In-memory supplier catalog and purchase-order draft store."""
 
 from __future__ import annotations
 
@@ -46,55 +46,58 @@ _SUPPLIERS: dict[str, list[SupplierOption]] = {
         ),
     ],
 }
+_PURCHASE_ORDERS: dict[str, PurchaseOrderDraft] = {}
 
 
 async def find_suppliers(query: SupplierQuery) -> SupplierList:
-    """Return ranked supplier options for a SKU."""
-
+    """Return ranked supplier options for a known SKU."""
     await asyncio.sleep(0)
-    suppliers = sorted(
-        _SUPPLIERS.get(query.sku, []),
+    suppliers = _SUPPLIERS.get(query.sku)
+    if suppliers is None:
+        raise ValueError(f"No supplier information exists for SKU {query.sku}.")
+
+    ranked_suppliers = sorted(
+        suppliers,
         key=lambda supplier: (-supplier.reliability_score, supplier.lead_time_days, supplier.unit_cost),
     )
-    return SupplierList(sku=query.sku, suppliers=suppliers)
+    return SupplierList(sku=query.sku, suppliers=ranked_suppliers)
 
 
 async def create_purchase_order(request: PurchaseOrderRequest) -> PurchaseOrderDraft:
-    """Create a deterministic purchase-order draft for a supplier and SKU."""
-
+    """Store and return a deterministic purchase-order draft without submitting it."""
     await asyncio.sleep(0)
     supplier = _supplier_for(request.sku, request.supplier_id)
-    quantity = min(request.quantity, supplier.available_qty)
-    po_id = _po_id(request=request, quantity=quantity)
-    return PurchaseOrderDraft(
-        po_id=po_id,
+    if request.quantity > supplier.available_qty:
+        raise ValueError(
+            f"Supplier {supplier.supplier_id} has {supplier.available_qty} units available; "
+            f"cannot draft {request.quantity} units."
+        )
+
+    draft = PurchaseOrderDraft(
         sku=request.sku,
         store_id=request.store_id,
         supplier_id=supplier.supplier_id,
-        quantity=quantity,
-        estimated_total=round(quantity * supplier.unit_cost, 2),
-        eta_days=supplier.lead_time_days,
+        quantity=request.quantity,
+        unit_cost=supplier.unit_cost,
+        estimated_delivery_days=supplier.lead_time_days,
         status="draft",
+        rationale=(
+            f"Draft only: {supplier.name} can supply {request.quantity} units at "
+            f"${supplier.unit_cost:.2f} per unit with an estimated {supplier.lead_time_days}-day lead time. "
+            "Approval is required before ordering."
+        ),
     )
+    _PURCHASE_ORDERS[_draft_key(request)] = draft
+    return draft
 
 
 def _supplier_for(sku: str, supplier_id: str) -> SupplierOption:
     for supplier in _SUPPLIERS.get(sku, []):
         if supplier.supplier_id == supplier_id:
             return supplier
-    return SupplierOption(
-        supplier_id=supplier_id,
-        name="Manual Review Supplier",
-        available_qty=0,
-        unit_cost=1.0,
-        lead_time_days=14,
-        reliability_score=0.0,
-    )
+    raise ValueError(f"Supplier {supplier_id} is not available for SKU {sku}.")
 
 
-def _po_id(*, request: PurchaseOrderRequest, quantity: int) -> str:
-    digest = hashlib.sha1(
-        f"{request.sku}:{request.store_id}:{request.supplier_id}:{quantity}".encode(),
-        usedforsecurity=False,
-    ).hexdigest()[:10]
-    return f"PO-{digest.upper()}"
+def _draft_key(request: PurchaseOrderRequest) -> str:
+    draft_data = f"{request.sku}:{request.store_id}:{request.supplier_id}:{request.quantity}"
+    return f"PO-{hashlib.sha256(draft_data.encode()).hexdigest()[:10].upper()}"
