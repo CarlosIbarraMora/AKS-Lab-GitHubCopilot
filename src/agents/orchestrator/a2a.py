@@ -14,6 +14,8 @@ from src.shared.server import InvokeRequest, InvokeResponse
 from src.shared.settings import Settings
 
 A2A_TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=10.0)
+LAB02_REPLENISHMENT_QUANTITY = 80
+LAB02_DEMAND_SIGNAL = "high"
 
 
 class SpecialistOutputs(BaseModel):
@@ -68,7 +70,12 @@ class FanOutGoals(BaseModel):
     pricing: str = Field(min_length=1)
 
 
-def build_specialist_goals(*, sku: str, store_id: str, supplier_quantity: int = 80) -> FanOutGoals:
+def build_specialist_goals(
+    *,
+    sku: str,
+    store_id: str,
+    supplier_quantity: int = LAB02_REPLENISHMENT_QUANTITY,
+) -> FanOutGoals:
     """Build deterministic specialist goals for a stock-out response plan."""
 
     return FanOutGoals(
@@ -78,7 +85,10 @@ def build_specialist_goals(*, sku: str, store_id: str, supplier_quantity: int = 
             f"Quote shipment for SKU {sku} from source location wh-east to destination store {store_id} "
             f"quantity {supplier_quantity}."
         ),
-        pricing=f"Recommend price for SKU {sku} at {store_id} with high demand signal and critical stock risk.",
+        pricing=(
+            f"Recommend price for SKU {sku} at {store_id} with {LAB02_DEMAND_SIGNAL} demand signal "
+            "and critical stock risk."
+        ),
     )
 
 
