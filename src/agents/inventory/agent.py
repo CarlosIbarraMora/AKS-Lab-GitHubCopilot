@@ -58,14 +58,21 @@ class _RunnableAgent:
 
     async def run(self, message: str, /) -> _AgentRunResult:
         response_stream = self.agent.run(message, stream=True)
+
         async for _update in response_stream:
             pass
+
         response = await response_stream.get_final_response()
-        return _AgentRunResult(output_text=response.text, tool_calls=_observed_tool_calls(response))
+
+        return _AgentRunResult(
+            output_text=response.text,
+            tool_calls=_observed_tool_calls(response),
+        )
 
 
 async def build_agent(settings: Settings) -> _RunnableAgent:
     mcp_url = urlsplit(settings.inventory_mcp_url)
+
     log.info(
         "inventory.mcp_configured",
         scheme=mcp_url.scheme,
@@ -86,6 +93,7 @@ async def build_agent(settings: Settings) -> _RunnableAgent:
             },
         },
     }
+
     agent = GitHubCopilotAgent(
         client=build_copilot_client(),
         instructions=SYSTEM_PROMPT,
@@ -94,4 +102,5 @@ async def build_agent(settings: Settings) -> _RunnableAgent:
         tools=list(TOOLS),
         default_options=default_options,
     )
+
     return _RunnableAgent(agent=agent)

@@ -2,16 +2,32 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 import structlog
 from mcp.server.fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from src.shared.keyvault import hydrate_key_vault
+
 from .models import StockQuery, StockReport
 from .store import lookup_stock
 
 log = structlog.get_logger(__name__).bind(service="inventory-mcp")
-mcp = FastMCP("inventory-mcp", host="0.0.0.0", port=8080, streamable_http_path="/mcp")
+
+
+@asynccontextmanager
+async def _keyvault_lifespan(_server: FastMCP[None]) -> AsyncGenerator[None, None]:
+    """Hydrate optional Key Vault settings before serving MCP requests."""
+
+    await hydrate_key_vault(os.environ.get("ZAVA_KV_URL"))
+    yield
+
+
+mcp = FastMCP("inventory-mcp", host="0.0.0.0", port=8080, streamable_http_path="/mcp", lifespan=_keyvault_lifespan)
 
 
 @mcp.custom_route("/healthz", methods=["GET"])

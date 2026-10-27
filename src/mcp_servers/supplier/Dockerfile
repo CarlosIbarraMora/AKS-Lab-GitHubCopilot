@@ -2,7 +2,7 @@ FROM python:3.11-slim AS builder
 
 ENV UV_SYSTEM_PYTHON=1
 RUN python -m pip install --no-cache-dir uv
-RUN uv pip install --system mcp pydantic structlog
+RUN uv pip install --system "mcp>=1,<2" pydantic structlog
 
 FROM python:3.11-slim AS runtime
 

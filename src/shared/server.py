@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
+from .keyvault import hydrate_key_vault
 from .settings import Settings
 from .telemetry import setup_tracing
 
@@ -87,7 +88,11 @@ def make_app(*, name: str, build: AgentBuilder, settings: Settings | None = None
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-        nonlocal agent
+        nonlocal agent, app_settings
+        await hydrate_key_vault(app_settings.kv_url)
+        if settings is None:
+            app_settings = Settings()
+        _app.state.settings = app_settings
         setup_tracing(service_name=name)
         log.info("agent.startup.begin", agent_name=name)
         agent = await build(app_settings)
@@ -95,6 +100,7 @@ def make_app(*, name: str, build: AgentBuilder, settings: Settings | None = None
         yield
 
     app = FastAPI(title=f"ZavaShop {name}", lifespan=lifespan)
+    app.state.settings = app_settings
 
     @app.get("/healthz", response_model=HealthResponse)
     async def healthz() -> HealthResponse:

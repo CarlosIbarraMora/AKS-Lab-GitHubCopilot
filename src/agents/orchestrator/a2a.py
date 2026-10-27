@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import uuid4
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field
 
 from src.shared.server import InvokeRequest, InvokeResponse
 from src.shared.settings import Settings
@@ -16,17 +14,6 @@ from src.shared.settings import Settings
 A2A_TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=10.0)
 LAB02_REPLENISHMENT_QUANTITY = 80
 LAB02_DEMAND_SIGNAL = "high"
-
-
-class SpecialistOutputs(BaseModel):
-    """Outputs returned by all specialists for one stock-out plan."""
-
-    model_config = ConfigDict(frozen=True)
-
-    inventory: str
-    supplier: str
-    logistics: str
-    pricing: str
 
 
 @dataclass(frozen=True)
@@ -57,61 +44,3 @@ class SpecialistInvoker(Protocol):
         ...
 
     async def invoke(self, *, name: str, url: str, goal: str, run_id: str | None = None) -> str: ...
-
-
-class FanOutGoals(BaseModel):
-    """Specialist goals generated for one stock-out request."""
-
-    model_config = ConfigDict(frozen=True)
-
-    inventory: str = Field(min_length=1)
-    supplier: str = Field(min_length=1)
-    logistics: str = Field(min_length=1)
-    pricing: str = Field(min_length=1)
-
-
-def build_specialist_goals(
-    *,
-    sku: str,
-    store_id: str,
-    supplier_quantity: int = LAB02_REPLENISHMENT_QUANTITY,
-) -> FanOutGoals:
-    """Build deterministic specialist goals for a stock-out response plan."""
-
-    return FanOutGoals(
-        inventory=f"Check stock risk for SKU {sku} at {store_id}; include nearby store and warehouse options.",
-        supplier=f"List suppliers and draft a purchase order for SKU {sku} at {store_id} quantity {supplier_quantity}.",
-        logistics=(
-            f"Quote shipment for SKU {sku} from source location wh-east to destination store {store_id} "
-            f"quantity {supplier_quantity}."
-        ),
-        pricing=(
-            f"Recommend price for SKU {sku} at {store_id} with {LAB02_DEMAND_SIGNAL} demand signal "
-            "and critical stock risk."
-        ),
-    )
-
-
-async def call_specialists(*, client: SpecialistInvoker, sku: str, store_id: str) -> SpecialistOutputs:
-    """Invoke all specialists through A2A HTTP."""
-
-    goals = build_specialist_goals(sku=sku, store_id=store_id)
-    async with asyncio.TaskGroup() as task_group:
-        inventory_task = task_group.create_task(
-            client.invoke(name="inventory", url=client.settings.inventory_a2a_url, goal=goals.inventory)
-        )
-        supplier_task = task_group.create_task(
-            client.invoke(name="supplier", url=client.settings.supplier_a2a_url, goal=goals.supplier)
-        )
-        logistics_task = task_group.create_task(
-            client.invoke(name="logistics", url=client.settings.logistics_a2a_url, goal=goals.logistics)
-        )
-        pricing_task = task_group.create_task(
-            client.invoke(name="pricing", url=client.settings.pricing_a2a_url, goal=goals.pricing)
-        )
-    return SpecialistOutputs(
-        inventory=inventory_task.result(),
-        supplier=supplier_task.result(),
-        logistics=logistics_task.result(),
-        pricing=pricing_task.result(),
-    )

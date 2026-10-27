@@ -6,9 +6,11 @@ requires-python = ">=3.11"
 dependencies = [
     "agent-framework-core>=1.8.1",
     "agent-framework-github-copilot>=1.0.0rc1",
+    "azure-identity>=1.15",
+    "azure-keyvault-secrets>=4.8",
     "fastapi",
     "httpx",
-    "mcp",
+    "mcp>=1,<2",
     "opentelemetry-api",
     "opentelemetry-sdk",
     "pydantic>=2",
