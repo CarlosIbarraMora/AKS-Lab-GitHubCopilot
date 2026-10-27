@@ -29,19 +29,19 @@ This lab follows the AKS landing zone accelerator design areas at workshop scale
 
 By the end of this lab you'll have:
 
-| Resource | Why |
-|---|---|
-| Resource group `rg-zavashop-lab` | Container for everything |
-| Azure Container Registry (`acrzavashop<rand>`) | Stores agent images |
-| AKS cluster (`aks-zavashop`) | Runs the orchestrator with Entra ID, Azure RBAC, Azure Policy, monitoring, and Defender enabled |
-| Azure Container Apps env (`cae-zavashop`) | Runs specialist agents |
-| Key Vault (`kv-zavashop-<rand>`) | Stores the GitHub Copilot token + MCP URLs |
-| Log Analytics workspace (`law-zavashop-<rand>`) | Collects AKS monitoring and Defender signals |
-| User-Assigned Managed Identity (UAMI) | Workload Identity for AKS/ACA |
-| Entra ID security group | Human operator access to AKS through Azure RBAC |
-| Defender for Cloud plans | Container and Key Vault threat protection |
-| Local Python 3.11 env with `uv` | Dev loop |
-| GitHub Copilot signed in in VS Code | Coding assistance |
+| Resource                                        | Why                                                                                             |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Resource group `rg-zavashop-lab`                | Container for everything                                                                        |
+| Azure Container Registry (`acrzavashop<rand>`)  | Stores agent images                                                                             |
+| AKS cluster (`aks-zavashop`)                    | Runs the orchestrator with Entra ID, Azure RBAC, Azure Policy, monitoring, and Defender enabled |
+| Azure Container Apps env (`cae-zavashop`)       | Runs specialist agents                                                                          |
+| Key Vault (`kv-zavashop-<rand>`)                | Stores the GitHub Copilot token + MCP URLs                                                      |
+| Log Analytics workspace (`law-zavashop-<rand>`) | Collects AKS monitoring and Defender signals                                                    |
+| User-Assigned Managed Identity (UAMI)           | Workload Identity for AKS/ACA                                                                   |
+| Entra ID security group                         | Human operator access to AKS through Azure RBAC                                                 |
+| Defender for Cloud plans                        | Container and Key Vault threat protection                                                       |
+| Local Python 3.11 env with `uv`                 | Dev loop                                                                                        |
+| GitHub Copilot signed in in VS Code             | Coding assistance                                                                               |
 
 ## 0. Tooling check
 
@@ -55,6 +55,7 @@ uv --version          # https://docs.astral.sh/uv/
 ```
 
 Install anything missing:
+
 - `brew install azure-cli kubectl helm uv` (macOS)
 - `winget install --id Microsoft.AzureCLI` (Windows)
 
@@ -326,16 +327,17 @@ Create `pyproject.toml` poe tasks (Copilot can do this — open the file and typ
 ## 9. Sign in to GitHub Copilot and load the custom agents
 
 In VS Code:
+
 1. Install **GitHub Copilot** and **GitHub Copilot Chat** extensions.
 2. `Cmd/Ctrl+Shift+P` → **GitHub Copilot: Sign In**.
 3. `Cmd/Ctrl+Shift+P` → **Developer: Reload Window** — this lets VS Code discover `.github/agents/*.agent.md`.
 4. Open Copilot Chat → open the **agent picker** (type `/` in the chat input). You should see the six ZavaShop custom agents:
-   - `requirements-analyst`
-   - `mcp-builder`
-   - `agent-builder`
-   - `orchestrator-architect`
-   - `test-author`
-   - `deploy-engineer`
+    - `requirements-analyst`
+    - `mcp-builder`
+    - `agent-builder`
+    - `orchestrator-architect`
+    - `test-author`
+    - `deploy-engineer`
 5. Verify chat settings: `Cmd/Ctrl+,` → search `chat.agent.allowedNetworkDomains` → ensure `github.com`, `*.azurecr.io`, and your ACR FQDN are allowed.
 
 > **From here on, every code change goes through a custom agent** (see `AGENTS.md` §1.1). Pick the agent whose `Owns` slice matches the file you are editing and invoke it with `/<name>`.
@@ -427,13 +429,13 @@ If these checks pass, you're ready for [Lab 02 — Agent Creation](../lab-02-age
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---|---|
-| Copilot SDK returns 401 | Your `GITHUB_TOKEN` is missing the Copilot scope, or your account doesn't have Copilot enabled. Re-issue a fine-grained PAT. |
-| Copilot SDK returns 403 on `gpt-5.5` | Your Copilot plan may not include `gpt-5.5`. Confirm in github.com/settings/copilot. |
-| `az aks create` hangs > 15 min | Check `az aks show ... --query provisioningState` in another shell; if `Failed`, delete and retry in a different region. |
-| `kubectl` `Unauthorized` | Re-run `az aks get-credentials --overwrite-existing`. |
-| Copilot Chat unable to reach GitHub | Corp proxy — set `HTTPS_PROXY` env var in VS Code's terminal profile. |
-| GitHub Actions: `The resource with name '<acr>' ... could not be found` | The UAMI is missing `Contributor` (or any role that grants `Microsoft.ContainerRegistry/registries/read`) on the RG. `AcrPull` is data-plane only and produces this **misleading "not found"** error. Re-run step 3. |
-| GitHub Actions OIDC: `AADSTS70021` / `no matching federated identity record` | The federated credential `gha-aks-lab-main` is missing or its `subject` doesn't match `repo:OWNER/REPO:ref:refs/heads/main`. Re-run the `az identity federated-credential create` in step 4. |
-| `.env.lab` accidentally committed | Rotate the GitHub PAT *immediately*, then `git rm --cached path/to/.env.lab && git commit && git push`. For full history scrub use `git filter-repo` (destructive — coordinate with collaborators). |
+| Symptom                                                                      | Fix                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Copilot SDK returns 401                                                      | Your `GITHUB_TOKEN` is missing the Copilot scope, or your account doesn't have Copilot enabled. Re-issue a fine-grained PAT.                                                                                         |
+| Copilot SDK returns 403 on `gpt-5.5`                                         | Your Copilot plan may not include `gpt-5.5`. Confirm in github.com/settings/copilot.                                                                                                                                 |
+| `az aks create` hangs > 15 min                                               | Check `az aks show ... --query provisioningState` in another shell; if `Failed`, delete and retry in a different region.                                                                                             |
+| `kubectl` `Unauthorized`                                                     | Re-run `az aks get-credentials --overwrite-existing`.                                                                                                                                                                |
+| Copilot Chat unable to reach GitHub                                          | Corp proxy — set `HTTPS_PROXY` env var in VS Code's terminal profile.                                                                                                                                                |
+| GitHub Actions: `The resource with name '<acr>' ... could not be found`      | The UAMI is missing `Contributor` (or any role that grants `Microsoft.ContainerRegistry/registries/read`) on the RG. `AcrPull` is data-plane only and produces this **misleading "not found"** error. Re-run step 3. |
+| GitHub Actions OIDC: `AADSTS70021` / `no matching federated identity record` | The federated credential `gha-aks-lab-main` is missing or its `subject` doesn't match `repo:OWNER/REPO:ref:refs/heads/main`. Re-run the `az identity federated-credential create` in step 4.                         |
+| `.env.lab` accidentally committed                                            | Rotate the GitHub PAT _immediately_, then `git rm --cached path/to/.env.lab && git commit && git push`. For full history scrub use `git filter-repo` (destructive — coordinate with collaborators).                  |

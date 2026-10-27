@@ -21,10 +21,13 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "bandit",
+    "pip-audit",
     "poethepoet",
     "pyright",
     "pytest",
     "pytest-asyncio",
+    "pytest-cov",
     "ruff",
 ]
 
@@ -36,6 +39,9 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP", "N", "ASYNC", "PL", "RUF"]
 ignore = ["PLR0913"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ANN401"]
+
 [tool.pyright]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
@@ -46,4 +52,10 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.poe.tasks]
-check = { shell = "ruff check src tests && ruff format --check src tests && pyright src tests && pytest" }
+check = { shell = "ruff check src tests && ruff format --check src tests && pyright src tests && pytest -q --cov=src/agents --cov-report=term-missing --cov-fail-under=80" }
+audit = { shell = "bandit -q -c pyproject.toml -r src && pip-audit --strict" }
+evals = "python -m tests.evals.run_evals"
+evals-docker = "python -m tests.evals.run_docker_evals"
+
+[tool.bandit]
+skips = ["B104", "B105"]

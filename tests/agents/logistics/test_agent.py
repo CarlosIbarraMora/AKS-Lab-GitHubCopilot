@@ -121,3 +121,20 @@ async def test_logistics_agent_refuses_pricing_goal(monkeypatch: pytest.MonkeyPa
     assert "refuse" in response.output_text
     assert "pricing" in SYSTEM_PROMPT
     assert "Never invent" in SYSTEM_PROMPT
+
+
+@pytest.mark.asyncio
+async def test_logistics_agent_handles_mcp_tool_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    MockChatClient.reset(
+        responses=['{"error":"shipping quote unavailable","retryable":true}'],
+        tool_calls=[["shipping-quote_shipment"]],
+        tool_results=[[RuntimeError("shipping MCP unavailable")]],
+    )
+    monkeypatch.setattr("src.agents.logistics.agent.GitHubCopilotAgent", MockChatClient)
+
+    agent = await build_agent(Settings())
+    result = await agent.run("Request a quote from store-202 to store-101.")
+
+    assert "error" in result.output_text
+    assert "unavailable" in result.output_text
+    assert result.tool_calls == ["shipping-quote_shipment"]

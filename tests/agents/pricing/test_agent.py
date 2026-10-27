@@ -48,3 +48,20 @@ async def test_pricing_agent_refuses_supplier_goal(monkeypatch: pytest.MonkeyPat
     assert "refuse" in response.output_text
     assert "purchase-order" in SYSTEM_PROMPT
     assert "Never invent" in SYSTEM_PROMPT
+
+
+@pytest.mark.asyncio
+async def test_pricing_agent_handles_mcp_tool_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    MockChatClient.reset(
+        responses=['{"error":"pricing lookup failed","retryable":true}'],
+        tool_calls=[["pricing-recommend_price"]],
+        tool_results=[[RuntimeError("pricing MCP unavailable")]],
+    )
+    monkeypatch.setattr("src.agents.pricing.agent.GitHubCopilotAgent", MockChatClient)
+
+    agent = await build_agent(Settings())
+    result = await agent.run("Recommend a price for SKU ZS-1042 at store-101.")
+
+    assert "error" in result.output_text
+    assert "failed" in result.output_text
+    assert result.tool_calls == ["pricing-recommend_price"]
