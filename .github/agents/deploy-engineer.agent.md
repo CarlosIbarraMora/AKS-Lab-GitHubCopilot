@@ -63,6 +63,8 @@ Prefer **ACR Tasks** (`az acr build`) over a local `docker build`. ACR Tasks:
 
 Fall back to local `docker buildx build --platform linux/amd64 --push` only when ACR Tasks is unreachable.
 
+When `ZAVA_TARGET=k3d`, use local `docker build` and the k3d registry (`localhost:5001`) instead of `az acr build`. When `ZAVA_LOWCOST=1`, the Defender/Policy gate is replaced by Trivy.
+
 ## Standard rollout sequence
 
 You execute these yourself (`runCommands`) and report each step:

@@ -15,7 +15,9 @@ spec:
     metadata:
       labels:
         {{- include "zavashop.labels" . | nindent 8 }}
+        {{- if .Values.workloadIdentity.enabled }}
         azure.workload.identity/use: "true"
+        {{- end }}
     spec:
       serviceAccountName: orchestrator-sa
       automountServiceAccountToken: true
@@ -32,31 +34,44 @@ spec:
       volumes:
         - name: copilot-cache
           emptyDir: {}
+        {{- if eq .Values.secrets.mode "csi" }}
         - name: github-token
           csi:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
               secretProviderClass: zavashop-github-token
+        {{- end }}
       containers:
         - name: orchestrator
           image: {{ printf "%s:%s" (required "image.repository is required" .Values.image.repository) (required "image.tag is required" .Values.image.tag) | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if eq .Values.secrets.mode "csi" }}
           command:
             - /bin/sh
             - -c
           args:
             - export GITHUB_TOKEN="$(cat /mnt/secrets-store/GITHUB-TOKEN)" && exec uvicorn src.agents.orchestrator.server:app --host 0.0.0.0 --port 8000
+          {{- end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
             - containerPort: {{ .Values.service.targetPort }}
               name: http
           env:
+            {{- if .Values.workloadIdentity.enabled }}
             - name: AZURE_CLIENT_ID
               value: {{ required "workloadIdentity.clientId is required" .Values.workloadIdentity.clientId | quote }}
+            {{- end }}
+            {{- if ne .Values.secrets.mode "csi" }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.k8sSecretName }}
+                  key: token
+            {{- end }}
             - name: ZAVA_COPILOT_MODEL
-              value: "gpt-5.5"
+              value: {{ .Values.copilotModel | default "gpt-5.5" | quote }}
             - name: ZAVA_COPILOT_TIMEOUT_SECONDS
               value: "120"
             - name: ZAVA_INVENTORY_A2A_URL
@@ -70,9 +85,11 @@ spec:
           volumeMounts:
             - name: copilot-cache
               mountPath: /home/zava/.cache
+            {{- if eq .Values.secrets.mode "csi" }}
             - name: github-token
               mountPath: /mnt/secrets-store
               readOnly: true
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

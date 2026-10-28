@@ -5,8 +5,15 @@ image:
   tag: ""
   pullPolicy: IfNotPresent
 
+copilotModel: gpt-5.5
+
 workloadIdentity:
+  enabled: true      # false on k3d
   clientId: ""
+
+secrets:
+  mode: csi          # csi (Azure Key Vault via CSI) | k8s (Kubernetes Secret)
+  k8sSecretName: github-token
 
 keyVault:
   name: ""

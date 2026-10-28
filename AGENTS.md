@@ -77,6 +77,7 @@ Run `uv run poe check` (alias for `ruff check && ruff format --check && pyright 
 - **Workload Identity** for Azure auth — no client secrets in env vars. Use `DefaultAzureCredential`.
 - AKS manifests live in `infra/aks/helm/` (one Helm chart, one values file per agent).
 - ACA manifests live in `infra/aca/` as `bicep` modules. Scale rule: `keda` HTTP, min 0, max 10.
+- Low-cost edition: see `ZAVA_LOWCOST` / `ZAVA_TARGET` in `.github/prompts/ship-it.prompt.md`.
 
 ## 6. Tests
 

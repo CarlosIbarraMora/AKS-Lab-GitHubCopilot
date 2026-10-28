@@ -25,6 +25,8 @@ tools: ['codebase', 'runCommands', 'editFiles']
    - AKS Defender security monitoring is enabled.
    - Defender for Cloud `Containers` and `KeyVaults` pricing tiers are `Standard`.
    - Do not use `az aks get-credentials --admin`.
+   - If `ZAVA_LOWCOST=1`, run Trivy (`CRITICAL,HIGH`) on every built image instead of the Azure Policy and Defender checks.
+   - If `ZAVA_TARGET=k3d`, build with Docker, push to `localhost:5001`, and deploy with `kubectl`/`helm` only (`infra/local/deploy-aca-local.sh` + `values-local.yaml`); never call `az`.
 6. For each changed service, build and push `$ACR.azurecr.io/zavashop/<svc>:$GIT_SHA`.
 7. For each changed specialist or MCP → `az containerapp update --image …`.
 8. If `src/agents/orchestrator/` changed → `helm upgrade --install zavashop infra/aks/helm/zavashop --set image.tag=$GIT_SHA …` and `kubectl rollout status`.
@@ -35,5 +37,5 @@ tools: ['codebase', 'runCommands', 'editFiles']
 
 - Push if `:latest` appears in any built tag.
 - Update a workload whose image does not exist in ACR.
-- Continue if Entra ID, Azure RBAC, Azure Policy, or Defender checks fail, unless the user explicitly says the subscription is governed by equivalent central policy and provides the evidence.
+- Continue if Entra ID, Azure RBAC, Azure Policy, or Defender checks fail, unless the user explicitly says the subscription is governed by equivalent central policy and provides the evidence. Exception: with `ZAVA_LOWCOST=1` (or `ZAVA_TARGET=k3d`) the Policy/Defender gate is replaced by a green Trivy scan.
 - Continue past a failed smoke test — instead, switch to `deploy-engineer` mode for triage.

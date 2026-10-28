@@ -23,6 +23,7 @@ LABEL org.opencontainers.image.source="https://github.com/kinfey/AKS-Lab-GitHubC
 
 ENV HOME=/home/zava \
     XDG_CACHE_HOME=/home/zava/.cache \
+    COPILOT_CLI_EXTRACT_DIR=/opt/copilot-cli \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
@@ -33,6 +34,11 @@ WORKDIR /app
 
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+
+# Bake the Copilot CLI runtime into the image so pods don't download it on every start
+# (outside $XDG_CACHE_HOME, which the Helm chart mounts as an emptyDir).
+RUN python -m copilot download-runtime && chmod -R a+rX /opt/copilot-cli
+
 COPY src /app/src
 
 USER 10001:10001

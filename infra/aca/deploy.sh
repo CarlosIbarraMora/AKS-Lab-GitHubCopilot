@@ -38,7 +38,7 @@ deploy_app() {
     -p targetPort="$target_port" \
     -p mcpEndpoints="$mcp_json" \
     -p exposeIngress=true \
-    -p minReplicas=1 \
+    -p minReplicas="${MIN_REPLICAS:-0}" \
     -o none
 
   local fqdn

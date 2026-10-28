@@ -1,0 +1,18 @@
+# Track A (k3d, $0): no Workload Identity, GITHUB_TOKEN from a Kubernetes Secret.
+replicaCount: 1
+image:
+  repository: k3d-zavashop-registry:5001/zavashop/orchestrator
+workloadIdentity:
+  enabled: false
+secrets:
+  mode: k8s
+keyVault:
+  name: unused
+tenantId: unused
+a2a:
+  inventory: http://inventory.zavashop-aca.svc.cluster.local:8000/invoke
+  supplier: http://supplier.zavashop-aca.svc.cluster.local:8000/invoke
+  logistics: http://logistics.zavashop-aca.svc.cluster.local:8000/invoke
+  pricing: http://pricing.zavashop-aca.svc.cluster.local:8000/invoke
+service:
+  type: ClusterIP
